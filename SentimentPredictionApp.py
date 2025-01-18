@@ -66,5 +66,13 @@ if uploaded_file is not None:
 
         total_time = time.time() - start_time
         st.write(f"Total time taken for all steps: {total_time:.2f} seconds")
+
+        # Allow user input for custom sentiment analysis
+        st.write("### Check Sentiment for Custom Text")
+        user_input = st.text_input("Enter a sentence or statement:")
+        if user_input:
+            cleaned_input = preprocess_text(user_input)
+            sentiment_result = get_sentiment(cleaned_input)
+            st.write(f"Sentiment for the entered text: {sentiment_result}")
     else:
         st.error("The CSV file must contain 'review' and 'sentiment' columns.")
