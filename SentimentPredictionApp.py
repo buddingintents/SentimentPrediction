@@ -1,63 +1,79 @@
 import streamlit as st
-from sklearn.feature_extraction.text import CountVectorizer
+import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import accuracy_score, classification_report
-import pandas as pd
+from sklearn.metrics import accuracy_score
+import string
+from nltk.corpus import stopwords
+import nltk
 
-# Streamlit App Title
-st.title("Sentiment Analysis App")
-st.write("This app uses Logistic Regression and Decision Tree to predict the sentiment of user reviews.")
+nltk.download('stopwords')
 
-# Input data
-st.sidebar.header("Input Data")
-data_input = st.sidebar.text_area("Enter reviews (one per line):")
+# Title
+st.title("Ankit's Sentiment Analysis App")
 
-# Label input
-labels_input = st.sidebar.text_area("Enter labels (0 for negative, 1 for positive) matching each review, comma-separated:")
+# Upload CSV file
+uploaded_file = st.file_uploader("Upload a CSV file", type="csv")
 
-# Process input data
-if st.sidebar.button("Run Sentiment Analysis"):
-    if data_input and labels_input:
-        reviews = data_input.strip().split('\n')
-        try:
-            labels = list(map(int, labels_input.split(',')))
-        except ValueError:
-            st.error("Please ensure labels are integers (0 or 1) separated by commas.")
-            st.stop()
+if uploaded_file is not None:
+    # Read the file
+    df = pd.read_csv(uploaded_file)
+    st.write("Data Preview:")
+    st.write(df.head())
 
-        if len(reviews) != len(labels):
-            st.error("The number of reviews and labels must match.")
-            st.stop()
+    # Assuming the columns are 'review' and 'sentiment'
+    if 'review' in df.columns and 'sentiment' in df.columns:
+        reviews = df['review']
+        sentiments = df['sentiment']
 
-        # Data Preprocessing
+        # Preprocessing function
+        def preprocess_text(text):
+            text = text.lower()  # Lowercase
+            text = text.translate(str.maketrans('', '', string.punctuation))  # Remove punctuation
+            words = text.split()
+            words = [word for word in words if word not in stopwords.words('english')]  # Remove stopwords
+            return ' '.join(words)
+
+        # Apply preprocessing
+        st.write("Preprocessing text data...")
+        df['cleaned_review'] = reviews.apply(preprocess_text)
+
+        # Split data into training and testing sets
+        X_train, X_test, y_train, y_test = train_test_split(
+            df['cleaned_review'], sentiments, test_size=0.2, random_state=42)
+
+        # Convert text data to a matrix of token counts
         vectorizer = CountVectorizer()
-        X = vectorizer.fit_transform(reviews)
-        y = labels
+        X_train_matrix = vectorizer.fit_transform(X_train)
+        X_test_matrix = vectorizer.transform(X_test)
 
-        # Splitting the data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+        # Logistic Regression model
+        st.write("Building Logistic Regression model...")
+        logistic_model = LogisticRegression()
+        logistic_model.fit(X_train_matrix, y_train)
+        y_train_pred_logistic = logistic_model.predict(X_train_matrix)
+        y_test_pred_logistic = logistic_model.predict(X_test_matrix)
 
-        # Logistic Regression Model
-        lr_model = LogisticRegression()
-        lr_model.fit(X_train, y_train)
-        lr_predictions = lr_model.predict(X_test)
-        lr_accuracy = accuracy_score(y_test, lr_predictions)
-        st.subheader("Logistic Regression Model")
-        st.write(f"Accuracy: {lr_accuracy:.2f}")
-        st.text("Classification Report:")
-        st.text(classification_report(y_test, lr_predictions))
+        logistic_train_accuracy = accuracy_score(y_train, y_train_pred_logistic)
+        logistic_test_accuracy = accuracy_score(y_test, y_test_pred_logistic)
 
-        # Decision Tree Model
-        dt_model = DecisionTreeClassifier()
-        dt_model.fit(X_train, y_train)
-        dt_predictions = dt_model.predict(X_test)
-        dt_accuracy = accuracy_score(y_test, dt_predictions)
-        st.subheader("Decision Tree Model")
-        st.write(f"Accuracy: {dt_accuracy:.2f}")
-        st.text("Classification Report:")
-        st.text(classification_report(y_test, dt_predictions))
+        # Decision Tree model
+        st.write("Building Decision Tree model...")
+        decision_tree_model = DecisionTreeClassifier()
+        decision_tree_model.fit(X_train_matrix, y_train)
+        y_train_pred_tree = decision_tree_model.predict(X_train_matrix)
+        y_test_pred_tree = decision_tree_model.predict(X_test_matrix)
 
+        tree_train_accuracy = accuracy_score(y_train, y_train_pred_tree)
+        tree_test_accuracy = accuracy_score(y_test, y_test_pred_tree)
+
+        # Display accuracy results
+        st.write("### Model Performance")
+        st.write(f"Logistic Regression - Training Accuracy: {logistic_train_accuracy:.2f}")
+        st.write(f"Logistic Regression - Test Accuracy: {logistic_test_accuracy:.2f}")
+        st.write(f"Decision Tree - Training Accuracy: {tree_train_accuracy:.2f}")
+        st.write(f"Decision Tree - Test Accuracy: {tree_test_accuracy:.2f}")
     else:
-        st.error("Please enter both reviews and labels.")
+        st.error("The CSV file must contain 'review' and 'sentiment' columns.")
