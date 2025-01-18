@@ -6,7 +6,11 @@ import string
 import nltk
 from nltk.corpus import stopwords
 
-nltk.download('stopwords')
+# Download stopwords only once at the start of the app
+nltk.download('stopwords', quiet=True)
+stop_words = set(stopwords.words('english'))
+
+st.info("Stopwords have been downloaded. You may proceed with uploading your file.")
 
 # Title
 st.title("Sentiment Analysis App with TextBlob and Time Reporting")
@@ -31,7 +35,7 @@ if uploaded_file is not None:
             text = text.lower()  # Lowercase
             text = text.translate(str.maketrans('', '', string.punctuation))  # Remove punctuation
             words = text.split()
-            words = [word for word in words if word not in stopwords.words('english')]  # Remove stopwords
+            words = [word for word in words if word not in stop_words]  # Remove stopwords
             return ' '.join(words)
 
         # Apply preprocessing
